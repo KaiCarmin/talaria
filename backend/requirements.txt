@@ -4,3 +4,5 @@ sqlmodel
 pydantic-settings
 httpx
 requests
+python-dotenv
+psycopg2-binary

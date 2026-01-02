@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # App Settings
     PROJECT_NAME: str = "Talaria"
+    PROJECT_VERSION: str = "0.1.0"
     
     # Database (We enforce that this must be set)
     DATABASE_URL: str
