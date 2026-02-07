@@ -21,7 +21,7 @@ Talaria is a containerized, full-stack application designed to ingest running da
 * [X] **Database Schema:** Define `Athlete` model with SQLModel.
 * [X] **Backend Auth:** Implement `GET /login` and `POST /callback` for Strava OAuth.
 * [X] **Token Persistence:** Save/Update User Access Tokens in Postgres.
-* [ ] **Frontend Auth:** Create Login Page and Handle Redirects.
+* [X] **Frontend Auth:** Create Login Page and Handle Redirects.
 
 ### 🟡 Phase 2: Data Ingestion (The Pipeline)
 
@@ -97,26 +97,26 @@ Talaria is a containerized, full-stack application designed to ingest running da
 - [X] Store encrypted tokens securely
 - [X] Handle token expiration and refresh flow
 
-#### 1.5 Frontend Auth (In Progress)
-- [ ] **Login Page Component**
-  - Create `Login.jsx` with styled button
+#### 1.5 Frontend Auth ✅
+- [X] **Login Page Component**
+  - Create `Login.tsx` with styled button
   - Add Talaria branding and hero section
   - Implement "Connect with Strava" button
   - Add loading states during OAuth flow
   
-- [ ] **OAuth Redirect Handler**
+- [X] **OAuth Redirect Handler**
   - Create callback route handler
   - Extract authorization code from URL params
   - Send code to backend `/callback` endpoint
   - Handle success/error responses
   
-- [ ] **Session Management**
+- [X] **Session Management**
   - Store athlete data in React context or state
   - Implement protected routes
   - Add logout functionality
   - Handle token refresh on app reload
   
-- [ ] **Error Handling**
+- [X] **Error Handling**
   - Display user-friendly error messages
   - Handle OAuth cancellation/denial
   - Network error recovery
