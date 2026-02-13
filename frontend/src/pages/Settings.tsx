@@ -15,19 +15,11 @@ const Settings: React.FC = () => {
     }
   }, [athlete?.id]);
 
-  if (!athlete) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Please log in to access settings.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
+    <div>
+      <div>
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
           <p className="mt-2 text-gray-600">
             Customize your training zones, units, and preferences
@@ -92,19 +84,19 @@ const Settings: React.FC = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Name</label>
                         <p className="mt-1 text-gray-900">
-                          {athlete.firstname} {athlete.lastname}
+                          {athlete?.firstname} {athlete?.lastname}
                         </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Strava ID</label>
-                        <p className="mt-1 text-gray-900">{athlete.strava_id}</p>
+                        <p className="mt-1 text-gray-900">{athlete?.strava_id}</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">
                           Member Since
                         </label>
                         <p className="mt-1 text-gray-900">
-                          {athlete.created_at 
+                          {athlete?.created_at 
                             ? new Date(athlete.created_at).toLocaleDateString()
                             : 'N/A'
                           }

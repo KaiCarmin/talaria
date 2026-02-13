@@ -1,11 +1,15 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { SettingsProvider } from "./context/SettingsContext";
 import Login from "./pages/Login";
 import Callback from "./pages/Callback";
 import Dashboard from "./pages/Dashboard";
+import Activities from "./pages/Activities";
+import Calendar from "./pages/Calendar";
+import Statistics from "./pages/Statistics";
 import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/layout/Layout";
 
 function App() {
   return (
@@ -19,7 +23,39 @@ function App() {
               path="/dashboard" 
               element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/activities" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Activities />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/calendar" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Calendar />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/statistics" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Statistics />
+                  </Layout>
                 </ProtectedRoute>
               } 
             />
@@ -27,7 +63,9 @@ function App() {
               path="/settings" 
               element={
                 <ProtectedRoute>
-                  <Settings />
+                  <Layout>
+                    <Settings />
+                  </Layout>
                 </ProtectedRoute>
               } 
             />
