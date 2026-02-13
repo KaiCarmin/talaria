@@ -7,6 +7,7 @@ interface Athlete {
   firstname: string | null;
   lastname: string | null;
   profile_medium: string | null;
+  created_at?: string;
 }
 
 interface AuthContextType {
