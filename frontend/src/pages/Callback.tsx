@@ -38,18 +38,8 @@ const Callback = () => {
           `http://localhost:8000/api/v1/auth/strava/callback?code=${code}`
         );
 
-        // Extract athlete data (backend returns athlete_id, we'll need the full athlete)
-        const { athlete_id } = response.data;
-
-        // For now, create a minimal athlete object
-        // In a real app, the backend should return full athlete data
-        const athleteData = {
-          id: athlete_id,
-          strava_id: athlete_id,
-          firstname: null,
-          lastname: null,
-          profile_medium: null,
-        };
+        // Extract athlete data from response
+        const athleteData = response.data.athlete;
 
         // Save to auth context
         login(athleteData);

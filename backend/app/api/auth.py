@@ -52,4 +52,17 @@ async def strava_callback(code: str, session: Session = Depends(get_session)):
     
     session.commit()
     
-    return {"message": "Login Successful", "athlete_id": strava_athlete["id"]}
+    # Get the athlete from DB to return with database ID
+    statement = select(Athlete).where(Athlete.strava_id == strava_athlete["id"])
+    athlete = session.exec(statement).first()
+    
+    return {
+        "message": "Login Successful",
+        "athlete": {
+            "id": athlete.id,
+            "strava_id": athlete.strava_id,
+            "firstname": athlete.firstname,
+            "lastname": athlete.lastname,
+            "profile_medium": athlete.profile_medium
+        }
+    }

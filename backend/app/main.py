@@ -11,7 +11,7 @@ from app.models.activity import Activity
 from app.models.athlete import Athlete
 
 # 3. API Routers
-from app.api import auth
+from app.api import auth, activities
 
 # Database Setup
 engine = create_engine(settings.DATABASE_URL)
@@ -48,6 +48,7 @@ app.add_middleware(
 
 # 4. Register Routes
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(activities.router, prefix="/api/v1", tags=["activities"])
 
 @app.get("/")
 def read_root():
