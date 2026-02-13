@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ActivityCharts from '../components/charts/ActivityCharts';
 
 interface Activity {
   id: number;
@@ -215,6 +216,9 @@ const ActivityDetail: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Activity Charts */}
+      <ActivityCharts activityId={activity.id} />
 
       {/* Splits Table */}
       {activity.splits && activity.splits.length > 0 && (
