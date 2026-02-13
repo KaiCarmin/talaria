@@ -4,7 +4,8 @@ Activity endpoints for syncing and managing Strava activities.
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 from typing import Dict, List
-from datetime import datetime
+from datetime import datetime, date
+from collections import defaultdict
 import logging
 
 from app.models.athlete import Athlete
@@ -253,3 +254,109 @@ async def get_activities(
         "offset": offset,
         "has_more": (offset + limit) < total_count
     }
+
+
+# ============================================================================
+# Calendar Endpoint
+# ============================================================================
+
+@router.get("/activities/{athlete_id}/calendar")
+async def get_activities_calendar(
+    athlete_id: int,
+    year: int = None,
+    month: int = None,
+    session: Session = Depends(get_session)
+) -> Dict:
+    """
+    Get activities grouped by date for calendar view.
+    
+    Args:
+        athlete_id: Internal database ID of the athlete
+        year: Year to fetch (default: current year)
+        month: Optional month filter (1-12)
+        
+    Returns:
+        Dict with activities grouped by date:
+        {
+            "2026-02-13": {
+                "activities": [...],
+                "total_distance": 5000,
+                "total_time": 1800,
+                "count": 1
+            }
+        }
+    """
+    # Verify athlete exists
+    athlete = session.get(Athlete, athlete_id)
+    if not athlete:
+        raise HTTPException(status_code=404, detail=f"Athlete {athlete_id} not found")
+    
+    # Default to current year if not specified
+    if year is None:
+        year = datetime.now().year
+    
+    # Build query for the specified period
+    statement = select(Activity).where(Activity.athlete_id == athlete_id)
+    
+    # Filter by year and optionally month
+    if month:
+        # Validate month
+        if month < 1 or month > 12:
+            raise HTTPException(status_code=400, detail="Month must be between 1 and 12")
+        
+        # Filter for specific month
+        from datetime import datetime
+        start_date = datetime(year, month, 1)
+        if month == 12:
+            end_date = datetime(year + 1, 1, 1)
+        else:
+            end_date = datetime(year, month + 1, 1)
+        
+        statement = statement.where(
+            Activity.start_date >= start_date,
+            Activity.start_date < end_date
+        )
+    else:
+        # Filter for entire year
+        start_date = datetime(year, 1, 1)
+        end_date = datetime(year + 1, 1, 1)
+        statement = statement.where(
+            Activity.start_date >= start_date,
+            Activity.start_date < end_date
+        )
+    
+    # Order by date
+    statement = statement.order_by(Activity.start_date.asc())
+    
+    # Execute query
+    activities = session.exec(statement).all()
+    
+    # Group activities by date
+    calendar_data = defaultdict(lambda: {
+        "activities": [],
+        "total_distance": 0,
+        "total_time": 0,
+        "count": 0
+    })
+    
+    for activity in activities:
+        # Get date string (YYYY-MM-DD)
+        date_key = activity.start_date.date().isoformat()
+        
+        # Add activity to the day
+        calendar_data[date_key]["activities"].append({
+            "id": activity.id,
+            "name": activity.name,
+            "type": activity.sport_type,
+            "distance": activity.distance,
+            "moving_time": activity.moving_time,
+            "average_speed": activity.average_speed,
+            "start_date": activity.start_date.isoformat()
+        })
+        
+        # Update totals for the day
+        calendar_data[date_key]["total_distance"] += activity.distance
+        calendar_data[date_key]["total_time"] += activity.moving_time
+        calendar_data[date_key]["count"] += 1
+    
+    return dict(calendar_data)
