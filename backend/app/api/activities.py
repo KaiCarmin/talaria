@@ -193,15 +193,21 @@ async def get_activities(
     athlete_id: int,
     limit: int = 10,
     offset: int = 0,
+    sort_by: str = "start_date",
+    order: str = "desc",
+    activity_type: str = None,
     session: Session = Depends(get_session)
 ) -> Dict:
     """
-    Get activities for an athlete from the database.
+    Get activities for an athlete from the database with sorting and filtering.
     
     Args:
         athlete_id: Internal database ID of the athlete
-        limit: Number of activities to return (default 10)
+        limit: Number of activities to return (default 10, max 100)
         offset: Number of activities to skip (default 0)
+        sort_by: Field to sort by (start_date, distance, moving_time, average_speed)
+        order: Sort order - asc or desc (default desc)
+        activity_type: Filter by activity type (Run, Race, Workout, etc.)
         
     Returns:
         Dict with activities list and metadata
@@ -211,20 +217,39 @@ async def get_activities(
     if not athlete:
         raise HTTPException(status_code=404, detail=f"Athlete {athlete_id} not found")
     
-    # Fetch activities
-    statement = select(Activity).where(
-        Activity.athlete_id == athlete_id
-    ).order_by(Activity.start_date.desc()).offset(offset).limit(limit)
+    # Validate and cap limit
+    limit = min(limit, 100)
     
+    # Build query
+    statement = select(Activity).where(Activity.athlete_id == athlete_id)
+    
+    # Apply type filter if specified
+    if activity_type:
+        statement = statement.where(Activity.type == activity_type)
+    
+    # Apply sorting
+    sort_field = getattr(Activity, sort_by, Activity.start_date)
+    if order.lower() == "asc":
+        statement = statement.order_by(sort_field.asc())
+    else:
+        statement = statement.order_by(sort_field.desc())
+    
+    # Apply pagination
+    statement = statement.offset(offset).limit(limit)
+    
+    # Execute query
     activities = session.exec(statement).all()
     
-    # Get total count
+    # Get total count (with filter applied)
     count_statement = select(Activity).where(Activity.athlete_id == athlete_id)
+    if activity_type:
+        count_statement = count_statement.where(Activity.type == activity_type)
     total_count = len(session.exec(count_statement).all())
     
     return {
         "activities": activities,
         "total": total_count,
         "limit": limit,
-        "offset": offset
+        "offset": offset,
+        "has_more": (offset + limit) < total_count
     }

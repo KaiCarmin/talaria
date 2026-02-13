@@ -42,6 +42,8 @@ class ActivityBase(SQLModel):
     athlete_count: Optional[int] = None  # number of athletes on the activity
 
 class Activity(ActivityBase, table=True):
+    __tablename__ = "activities"
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
