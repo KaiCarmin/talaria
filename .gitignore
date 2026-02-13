@@ -1,5 +1,5 @@
 # project-specific gitignore file for Python projects
-scripts/
+.scripts/
 logs/
 
 # Byte-compiled / optimized / DLL files
