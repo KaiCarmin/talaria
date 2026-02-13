@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Callback from "./pages/Callback";
 import Dashboard from "./pages/Dashboard";
 import Activities from "./pages/Activities";
+import ActivityDetail from "./pages/ActivityDetail";
 import Calendar from "./pages/Calendar";
 import Statistics from "./pages/Statistics";
 import Settings from "./pages/Settings";
@@ -35,6 +36,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Activities />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/activities/:activityId" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ActivityDetail />
                   </Layout>
                 </ProtectedRoute>
               } 

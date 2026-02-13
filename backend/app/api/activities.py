@@ -3,7 +3,7 @@ Activity endpoints for syncing and managing Strava activities.
 """
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime, date
 from collections import defaultdict
 import logging
@@ -360,3 +360,252 @@ async def get_activities_calendar(
         calendar_data[date_key]["count"] += 1
     
     return dict(calendar_data)
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+def decode_polyline(polyline_str: str) -> List[Tuple[float, float]]:
+    """
+    Decode a polyline string into a list of lat/lng coordinates.
+    
+    Args:
+        polyline_str: Encoded polyline string from Strava
+        
+    Returns:
+        List of (latitude, longitude) tuples
+    """
+    if not polyline_str:
+        return []
+    
+    coordinates = []
+    index = 0
+    lat = 0
+    lng = 0
+    
+    while index < len(polyline_str):
+        # Decode latitude
+        result = 0
+        shift = 0
+        while True:
+            b = ord(polyline_str[index]) - 63
+            index += 1
+            result |= (b & 0x1f) << shift
+            shift += 5
+            if b < 0x20:
+                break
+        
+        dlat = ~(result >> 1) if (result & 1) else (result >> 1)
+        lat += dlat
+        
+        # Decode longitude
+        result = 0
+        shift = 0
+        while True:
+            b = ord(polyline_str[index]) - 63
+            index += 1
+            result |= (b & 0x1f) << shift
+            shift += 5
+            if b < 0x20:
+                break
+        
+        dlng = ~(result >> 1) if (result & 1) else (result >> 1)
+        lng += dlng
+        
+        coordinates.append((lat / 1e5, lng / 1e5))
+    
+    return coordinates
+
+
+def calculate_splits(distance: float, moving_time: int, split_distance: int = 1000) -> List[Dict]:
+    """
+    Calculate splits for an activity.
+    
+    Args:
+        distance: Total distance in meters
+        moving_time: Total moving time in seconds
+        split_distance: Split distance in meters (default 1000m = 1km)
+        
+    Returns:
+        List of split dictionaries with pace and time info
+    """
+    if distance == 0 or moving_time == 0:
+        return []
+    
+    num_splits = int(distance / split_distance)
+    time_per_split = moving_time / (distance / split_distance)
+    splits = []
+    
+    for i in range(num_splits):
+        split_num = i + 1
+        split_time = time_per_split
+        # Pace in min/km (or min/mile)
+        pace = (split_time / 60) / (split_distance / 1000)
+        
+        splits.append({
+            "split": split_num,
+            "distance": split_distance,
+            "time": int(split_time),
+            "pace": round(pace, 2)
+        })
+    
+    # Add final partial split if there's a remainder
+    remainder = distance % split_distance
+    if remainder > 0:
+        remainder_time = (remainder / distance) * moving_time
+        remainder_pace = (remainder_time / 60) / (remainder / 1000)
+        splits.append({
+            "split": num_splits + 1,
+            "distance": int(remainder),
+            "time": int(remainder_time),
+            "pace": round(remainder_pace, 2)
+        })
+    
+    return splits
+
+
+# ============================================================================
+# Single Activity Detail Endpoint
+# ============================================================================
+
+@router.get("/activities/{athlete_id}/{activity_id}")
+async def get_activity_detail(
+    athlete_id: int,
+    activity_id: int,
+    session: Session = Depends(get_session)
+) -> Dict:
+    """
+    Get detailed information for a single activity.
+    
+    Args:
+        athlete_id: Internal database ID of the athlete
+        activity_id: Internal database ID of the activity
+        
+    Returns:
+        Dict with full activity data including decoded polyline and splits
+    """
+    # Verify athlete exists
+    athlete = session.get(Athlete, athlete_id)
+    if not athlete:
+        raise HTTPException(status_code=404, detail=f"Athlete {athlete_id} not found")
+    
+    # Get activity
+    activity = session.get(Activity, activity_id)
+    if not activity:
+        raise HTTPException(status_code=404, detail=f"Activity {activity_id} not found")
+    
+    # Verify activity belongs to athlete
+    if activity.athlete_id != athlete_id:
+        raise HTTPException(status_code=403, detail="Activity does not belong to this athlete")
+    
+    # Decode polyline if available
+    coordinates = []
+    if activity.polyline:
+        coordinates = decode_polyline(activity.polyline)
+    
+    # Calculate splits
+    splits = calculate_splits(activity.distance, activity.moving_time)
+    
+    # Build response
+    return {
+        "id": activity.id,
+        "strava_id": activity.strava_id,
+        "name": activity.name,
+        "type": activity.sport_type,
+        "distance": activity.distance,
+        "moving_time": activity.moving_time,
+        "elapsed_time": activity.elapsed_time,
+        "total_elevation_gain": activity.total_elevation_gain,
+        "start_date": activity.start_date.isoformat(),
+        "start_date_local": activity.start_date_local.isoformat(),
+        "timezone": activity.timezone,
+        "average_speed": activity.average_speed,
+        "max_speed": activity.max_speed,
+        "average_heartrate": activity.average_heartrate,
+        "max_heartrate": activity.max_heartrate,
+        "has_heartrate": activity.has_heartrate,
+        "average_cadence": activity.average_cadence,
+        "elev_high": activity.elev_high,
+        "elev_low": activity.elev_low,
+        "calories": activity.calories,
+        "achievement_count": activity.achievement_count,
+        "kudos_count": activity.kudos_count,
+        "comment_count": activity.comment_count,
+        "athlete_count": activity.athlete_count,
+        "coordinates": coordinates,
+        "splits": splits,
+        "created_at": activity.created_at.isoformat(),
+        "updated_at": activity.updated_at.isoformat()
+    }
+
+
+# ============================================================================
+# Activity Streams Endpoint
+# ============================================================================
+
+@router.get("/activities/{athlete_id}/{activity_id}/streams")
+async def get_activity_streams_endpoint(
+    athlete_id: int,
+    activity_id: int,
+    session: Session = Depends(get_session)
+) -> Dict:
+    """
+    Get time-series stream data for an activity from Strava.
+    
+    Args:
+        athlete_id: Internal database ID of the athlete
+        activity_id: Internal database ID of the activity
+        
+    Returns:
+        Dict with stream data (time, distance, heartrate, cadence, etc.)
+    """
+    # Verify athlete exists
+    athlete = session.get(Athlete, athlete_id)
+    if not athlete:
+        raise HTTPException(status_code=404, detail=f"Athlete {athlete_id} not found")
+    
+    # Get activity
+    activity = session.get(Activity, activity_id)
+    if not activity:
+        raise HTTPException(status_code=404, detail=f"Activity {activity_id} not found")
+    
+    # Verify activity belongs to athlete
+    if activity.athlete_id != athlete_id:
+        raise HTTPException(status_code=403, detail="Activity does not belong to this athlete")
+    
+    # Check if token needs refresh
+    current_time = int(datetime.now().timestamp())
+    if athlete.expires_at < current_time:
+        logger.info("Access token expired, refreshing...")
+        try:
+            token_data = await strava_api.refresh_access_token(athlete.refresh_token)
+            
+            athlete.access_token = token_data["access_token"]
+            athlete.refresh_token = token_data["refresh_token"]
+            athlete.expires_at = token_data["expires_at"]
+            athlete.updated_at = datetime.now()
+            
+            session.add(athlete)
+            session.commit()
+            session.refresh(athlete)
+            
+            logger.info("Token refreshed successfully")
+        except HTTPException as e:
+            logger.error(f"Token refresh failed: {e.detail}")
+            raise HTTPException(
+                status_code=401,
+                detail="Failed to refresh access token. Please re-authenticate."
+            )
+    
+    # Fetch streams from Strava
+    try:
+        streams = await strava_api.get_activity_streams(
+            access_token=athlete.access_token,
+            activity_id=activity.strava_id
+        )
+        
+        return streams
+    except HTTPException as e:
+        logger.error(f"Failed to fetch streams: {e.detail}")
+        raise
