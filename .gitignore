@@ -1,6 +1,5 @@
 # project-specific gitignore file for Python projects
-.scripts/
-logs/
+**/logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
